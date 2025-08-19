@@ -18,6 +18,9 @@ pub struct Player {
     pub speed: f32,
 }
 
+#[derive(Resource, Default)]
+struct Tick(u32);
+
 #[derive(Debug, Component)]
 struct Bot {
     auto_cast: Timer,
@@ -54,27 +57,21 @@ fn main() {
     app.add_plugins(NetcodeServerPlugin);
 
     app.insert_resource(ServerLobby::default());
+    app.insert_resource(Tick(0));
     app.insert_resource(BotId(0));
     app.insert_resource(RenetServerVisualizer::<200>::default());
     app.insert_resource(server);
     app.insert_resource(transport);
+    app.insert_resource(Time::<Fixed>::from_hz(30.0));
 
-    app.add_systems(
-        Update,
-        (
-            server_update_system,
-            server_network_sync,
-            spawn_bot,
-            move_players_system,
-        ),
-    );
+    app.add_systems(Update, (server_update_system, spawn_bot));
+    app.add_systems(FixedUpdate, (move_players_system, server_network_sync));
 
     app.add_systems(Startup, (setup_level, setup_simple_camera));
 
     app.run();
 }
 
-#[allow(clippy::too_many_arguments)]
 fn server_update_system(
     mut server_events: EventReader<ServerEvent>,
     mut commands: Commands,
@@ -84,6 +81,7 @@ fn server_update_system(
     mut server: ResMut<RenetServer>,
     mut visualizer: ResMut<RenetServerVisualizer<200>>,
     players: Query<(Entity, &Player, &Transform)>,
+    tick: Res<Tick>,
 ) {
     for event in server_events.read() {
         match event {
@@ -114,7 +112,7 @@ fn server_update_system(
                         MeshMaterial3d(materials.add(Color::srgb_u8(255, 180, 80))),
                         Player {
                             id: *client_id,
-                            speed: 0.2,
+                            speed: 5.0,
                         },
                         PlayerInput::default(),
                         transform,
@@ -127,6 +125,7 @@ fn server_update_system(
                 let rotations: [f32; 4] = transform.rotation.into();
 
                 if let Ok(msg) = postcard::to_allocvec(&NetworkedEntities {
+                    tick: tick.0,
                     entities: vec![player_entity],
                     translations: vec![translation],
                     rotations: vec![rotations],
@@ -170,18 +169,23 @@ fn server_update_system(
 fn server_network_sync(
     mut server: ResMut<RenetServer>,
     q_player: Query<(Entity, &Player, &Transform), With<Player>>,
+    mut tick: ResMut<Tick>,
 ) {
-    let mut networked_entities = NetworkedEntities::default();
+    tick.0 = tick.0.wrapping_add(1);
+
+    let mut ne = NetworkedEntities {
+        tick: tick.0,
+        ..default()
+    };
+
     for (entity, player, transform) in q_player.iter() {
-        networked_entities.entities.push(entity);
-        networked_entities
-            .translations
-            .push(transform.translation.into());
-        networked_entities.rotations.push(transform.rotation.into());
-        networked_entities.player_ids.push(player.id);
+        ne.entities.push(entity);
+        ne.translations.push(transform.translation.into());
+        ne.rotations.push(transform.rotation.into());
+        ne.player_ids.push(player.id);
     }
 
-    let msg = postcard::to_allocvec(&networked_entities).unwrap();
+    let msg = postcard::to_allocvec(&ne).unwrap();
     server.broadcast_message(ServerChannel::NetworkedEntities, msg);
 }
 
@@ -212,7 +216,7 @@ fn spawn_bot(
             ))
             .insert(Player {
                 id: client_id,
-                speed: 0.2,
+                speed: 5.0,
             })
             .insert(Bot {
                 auto_cast: Timer::from_seconds(3.0, TimerMode::Repeating),
@@ -235,27 +239,20 @@ fn spawn_bot(
 
 fn move_players_system(
     mut query: Query<(&PlayerInput, &Player, &mut Transform)>,
-    // mut server: ResMut<RenetServer>,
+    time: Res<Time<Fixed>>,
 ) {
+    let dt = time.delta_secs();
+
     for (input, player, mut tf) in query.iter_mut() {
-        println!("Player {} input: {:?}", player.id, input);
         let x = (input.right as i8 - input.left as i8) as f32;
         let y = (input.down as i8 - input.up as i8) as f32;
         let direction = Vec2::new(x, y).normalize_or_zero();
 
-        tf.translation.x += direction.x * player.speed;
-        tf.translation.z += direction.y * player.speed;
+        tf.translation.x += direction.x * player.speed * dt;
+        tf.translation.z += direction.y * player.speed * dt;
 
         let yaw = direction.x.atan2(-direction.y);
         tf.rotation = Quat::from_rotation_y(yaw);
-
-        // if let Ok(msg) = postcard::to_allocvec(&ServerMessages::PlayerPositionUpdate {
-        //     id: player.id,
-        //     translation: tf.translation.into(),
-        //     rotation: tf.rotation.into(),
-        // }) {
-        //     server.broadcast_message(ServerChannel::ServerMessages, msg);
-        // }
     }
 }
 

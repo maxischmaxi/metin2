@@ -25,6 +25,7 @@ pub struct PlayerInput {
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct NetworkedEntities {
+    pub tick: u32,
     pub entities: Vec<Entity>,
     pub translations: Vec<[f32; 3]>,
     pub rotations: Vec<[f32; 4]>,
@@ -51,9 +52,7 @@ impl ClientChannel {
             ChannelConfig {
                 channel_id: Self::Input.into(),
                 max_memory_usage_bytes: 5 * 1024 * 1024,
-                send_type: SendType::ReliableOrdered {
-                    resend_time: Duration::ZERO,
-                },
+                send_type: SendType::Unreliable,
             },
             ChannelConfig {
                 channel_id: Self::Command.into(),
@@ -75,11 +74,6 @@ pub enum ServerMessages {
     },
     PlayerRemove {
         id: ClientId,
-    },
-    PlayerPositionUpdate {
-        id: ClientId,
-        translation: [f32; 3],
-        rotation: [f32; 4],
     },
 }
 

@@ -1,4 +1,8 @@
-use std::{collections::HashMap, net::UdpSocket, time::SystemTime};
+use std::{
+    collections::{HashMap, VecDeque},
+    net::UdpSocket,
+    time::SystemTime,
+};
 
 use bevy::{
     input::mouse::{MouseMotion, MouseScrollUnit, MouseWheel},
@@ -58,6 +62,35 @@ struct ClientLobby {
 #[derive(Default, Resource)]
 struct NetworkMapping(HashMap<Entity, Entity>);
 
+#[derive(Default, Resource)]
+struct LocalClientEntity(Option<Entity>);
+
+#[derive(Resource)]
+struct SnapshotBuffer {
+    latest_tick: u32,
+    render_tick: f32,
+    server_hz: f32,
+    initialized: bool,
+    by_entity: HashMap<Entity, VecDeque<(u32, Vec3, Quat)>>,
+}
+
+impl Default for SnapshotBuffer {
+    fn default() -> Self {
+        Self {
+            latest_tick: 0,
+            render_tick: 0.0,
+            server_hz: 30.0,
+            initialized: false,
+            by_entity: HashMap::default(),
+        }
+    }
+}
+
+const INTERP_DELAY_TICKS: u32 = 2;
+const SERVER_HZ: f32 = 30.0;
+const PLAYER_STEP_PER_TICK: f32 = 0.2;
+const PLAYER_SPEED_PER_SEC: f32 = PLAYER_STEP_PER_TICK * SERVER_HZ;
+
 fn main() {
     let mut app = App::new();
 
@@ -84,6 +117,8 @@ fn main() {
     app.insert_resource(client);
     app.insert_resource(transport);
     app.insert_resource(CurrentClientId(0));
+    app.insert_resource(SnapshotBuffer::default());
+    app.insert_resource(LocalClientEntity::default());
     app.insert_resource(OrbitSettings {
         distance: 10.0,
         min_distance: 3.0,
@@ -113,6 +148,8 @@ fn main() {
             graceful_disconnect_on_exit,
         ),
     );
+    app.add_systems(Update, predict_local_player.before(interpolate_snapshots));
+
     app.add_systems(
         Update,
         (
@@ -223,38 +260,14 @@ fn client_sync_players(
     client_id: Res<CurrentClientId>,
     mut lobby: ResMut<ClientLobby>,
     mut network_mapping: ResMut<NetworkMapping>,
-    mut q_player: Query<&mut Transform, With<ControlledPlayer>>,
-    mut q_cam: Query<&mut Transform, (With<Camera3d>, Without<ControlledPlayer>)>,
-    orbit: Res<OrbitSettings>,
+    mut buffer: ResMut<SnapshotBuffer>,
+    mut local: ResMut<LocalClientEntity>,
+    mut q_tf: Query<&mut Transform>,
 ) {
     let client_id = client_id.0;
     while let Some(message) = client.receive_message(ServerChannel::ServerMessages) {
         let server_message = postcard::from_bytes(&message).unwrap();
         match server_message {
-            ServerMessages::PlayerPositionUpdate {
-                id,
-                translation,
-                rotation,
-            } => {
-                if client_id == id {
-                    if let Ok(mut player_tf) = q_player.single_mut() {
-                        player_tf.translation = translation.into();
-                        player_tf.rotation =
-                            Quat::from_xyzw(rotation[0], rotation[1], rotation[2], rotation[3]);
-                    }
-                } else if let Some(PlayerInfo { client_entity, .. }) = lobby.players.get(&id) {
-                    commands.entity(*client_entity).insert(Transform {
-                        translation: translation.into(),
-                        rotation: Quat::from_xyzw(
-                            rotation[0],
-                            rotation[1],
-                            rotation[2],
-                            rotation[3],
-                        ),
-                        ..Default::default()
-                    });
-                }
-            }
             ServerMessages::PlayerCreate {
                 id,
                 translation,
@@ -273,6 +286,7 @@ fn client_sync_players(
 
                 if client_id == id {
                     player.insert(ControlledPlayer);
+                    local.0 = Some(player_id);
                 }
 
                 let player_info = PlayerInfo {
@@ -299,15 +313,17 @@ fn client_sync_players(
     }
 
     while let Some(message) = client.receive_message(ServerChannel::NetworkedEntities) {
-        let Ok(mut cam_tf) = q_cam.single_mut() else {
-            return;
-        };
-
         let networked_entities: NetworkedEntities = postcard::from_bytes(&message).unwrap();
+
+        if !buffer.initialized {
+            buffer.render_tick = networked_entities.tick as f32 - INTERP_DELAY_TICKS as f32;
+            buffer.initialized = true;
+        }
+        buffer.latest_tick = buffer.latest_tick.max(networked_entities.tick);
 
         for i in 0..networked_entities.entities.len() {
             let player_id = networked_entities.player_ids[i];
-            let entity = networked_entities.entities[i];
+            let server_entity = networked_entities.entities[i];
             let translation = networked_entities.translations[i].into();
             let rotation = Quat::from_xyzw(
                 networked_entities.rotations[i][0],
@@ -316,43 +332,41 @@ fn client_sync_players(
                 networked_entities.rotations[i][3],
             );
 
-            // entity exists, we just update its transform
-            if let Some(entity) = network_mapping.0.get(&networked_entities.entities[i]) {
-                let transform = Transform {
-                    translation,
-                    rotation,
-                    ..Default::default()
-                };
-                commands.entity(*entity).insert(transform);
-                return;
+            if let Some(&client_entity) = network_mapping.0.get(&server_entity) {
+                if local.0 == Some(client_entity) {
+                    if let Ok(mut tf) = q_tf.get_mut(client_entity) {
+                        let k = 0.15;
+                        tf.translation = tf.translation.lerp(translation, k);
+                        tf.rotation = tf.rotation.slerp(rotation, k);
+                    }
+                } else {
+                    let dq = buffer.by_entity.entry(client_entity).or_default();
+                    if let Some(&(last_tick, _, _)) = dq.back() {
+                        if networked_entities.tick <= last_tick {
+                            continue;
+                        }
+                    }
+
+                    dq.push_back((networked_entities.tick, translation, rotation));
+
+                    while dq.len() > 32 {
+                        dq.pop_front();
+                    }
+                }
+            } else {
+                let mut player = commands.spawn((
+                    Player,
+                    Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0))),
+                    MeshMaterial3d(materials.add(Color::srgb_u8(255, 180, 80))),
+                    Transform::from_xyz(translation[0], translation[1], translation[2]),
+                ));
+
+                if player_id == client_id {
+                    player.insert(ControlledPlayer);
+                }
+
+                network_mapping.0.insert(server_entity, player.id());
             }
-
-            let mut player = commands.spawn((
-                Player,
-                Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0))),
-                MeshMaterial3d(materials.add(Color::srgb_u8(255, 180, 80))),
-                Transform::from_xyz(translation[0], translation[1], translation[2]),
-                ControlledPlayer,
-            ));
-
-            if player_id == client_id {
-                player.insert(ControlledPlayer);
-            }
-
-            let (cp, sp) = (orbit.pitch.cos(), orbit.pitch.sin());
-            let (cy, sy) = (orbit.yaw.cos(), orbit.yaw.sin());
-
-            let offset = Vec3::new(
-                orbit.distance * cp * cy,
-                orbit.distance * sp,
-                orbit.distance * cp * sy,
-            );
-
-            cam_tf.translation = Transform::from_translation(offset)
-                .looking_at(Vec3::ZERO, Vec3::Y)
-                .translation;
-
-            network_mapping.0.insert(entity, player.id());
         }
     }
 }
@@ -444,4 +458,86 @@ fn rotate_orbit_with_mouse(
     orbit.yaw += delta.x * orbit.mouse_sensitivity;
     orbit.pitch += delta.y * orbit.mouse_sensitivity;
     orbit.pitch = orbit.pitch.clamp(orbit.min_pitch, orbit.max_pitch);
+}
+
+fn interpolate_snapshots(
+    mut q_tf: Query<&mut Transform>,
+    mut buffer: ResMut<SnapshotBuffer>,
+    time: Res<Time>,
+    local: Res<LocalClientEntity>,
+) {
+    if !buffer.initialized {
+        return;
+    }
+
+    let target = buffer.latest_tick as f32 - INTERP_DELAY_TICKS as f32;
+    let step = buffer.server_hz * time.delta_secs();
+
+    if buffer.render_tick < target {
+        buffer.render_tick = (buffer.render_tick + step).min(target);
+    } else {
+        buffer.render_tick = target;
+    }
+
+    let rt = buffer.render_tick;
+
+    for (entity, dq) in buffer.by_entity.iter() {
+        if local.0 == Some(*entity) {
+            continue;
+        }
+
+        if let Ok(mut tf) = q_tf.get_mut(*entity) {
+            let mut prev = None;
+            let mut next = None;
+
+            for (tick, pos, rot) in dq.iter() {
+                if *tick as f32 <= rt {
+                    prev = Some((*tick, *pos, *rot));
+                }
+                if *tick as f32 >= rt {
+                    next = Some((*tick, *pos, *rot));
+                    break;
+                }
+            }
+
+            match (prev, next) {
+                (Some((pt, ppos, prot)), Some((nt, npos, nrot))) if nt > pt => {
+                    let dt = (nt - pt) as f32;
+                    let t = ((rt - pt as f32) / dt).clamp(0.0, 1.0);
+                    tf.translation = ppos.lerp(npos, t);
+                    tf.rotation = prot.slerp(nrot, t);
+                }
+                (Some((_pt, ppos, prot)), None) => {
+                    tf.translation = ppos;
+                    tf.rotation = prot;
+                }
+                (None, Some((_nt, npos, nrot))) => {
+                    tf.translation = npos;
+                    tf.rotation = nrot;
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+fn predict_local_player(
+    time: Res<Time>,
+    input: Res<PlayerInput>,
+    mut q: Query<&mut Transform, With<ControlledPlayer>>,
+) {
+    let dt = time.delta_secs();
+    let x = (input.right as i8 - input.left as i8) as f32;
+    let y = (input.down as i8 - input.up as i8) as f32;
+    let dir = Vec2::new(x, y).normalize_or_zero();
+
+    for mut tf in &mut q {
+        tf.translation.x += dir.x * PLAYER_SPEED_PER_SEC * dt;
+        tf.translation.z += dir.y * PLAYER_SPEED_PER_SEC * dt;
+
+        if dir.length_squared() > 0.0 {
+            let yaw = dir.x.atan2(-dir.y);
+            tf.rotation = Quat::from_rotation_y(yaw);
+        }
+    }
 }
