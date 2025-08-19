@@ -6,8 +6,8 @@ use bevy_renet::{
     RenetServerPlugin,
 };
 use metin2::{
-    serialize_server_messages, setup_level, ClientChannel, NetworkedEntities, PlayerCommand,
-    PlayerInput, RenetServerVisualizer, ServerChannel, ServerMessages, PROTOCOL_ID,
+    serialize_server_messages, ClientChannel, NetworkedEntities, PlayerCommand, PlayerInput,
+    RenetServerVisualizer, ServerChannel, ServerMessages, PROTOCOL_ID,
 };
 use renet::ClientId;
 use std::{collections::HashMap, net::UdpSocket, time::SystemTime};
@@ -66,7 +66,6 @@ fn main() {
 
     app.add_systems(Update, (server_update_system, spawn_bot));
     app.add_systems(FixedUpdate, (move_players_system, server_network_sync));
-
     app.add_systems(Startup, (setup_level, setup_simple_camera));
 
     app.run();
@@ -81,7 +80,6 @@ fn server_update_system(
     mut server: ResMut<RenetServer>,
     mut visualizer: ResMut<RenetServerVisualizer<200>>,
     players: Query<(Entity, &Player, &Transform)>,
-    tick: Res<Tick>,
 ) {
     for event in server_events.read() {
         match event {
@@ -91,10 +89,13 @@ fn server_update_system(
 
                 for (entity, player, transform) in players.iter() {
                     let translation: [f32; 3] = transform.translation.into();
+                    let rotation: [f32; 4] = transform.rotation.into();
+
                     if let Ok(msg) = postcard::to_allocvec(&ServerMessages::PlayerCreate {
                         id: player.id,
                         entity,
                         translation,
+                        rotation,
                     }) {
                         server.send_message(*client_id, ServerChannel::ServerMessages, msg);
                     }
@@ -122,16 +123,15 @@ fn server_update_system(
                 lobby.players.insert(*client_id, player_entity);
 
                 let translation: [f32; 3] = transform.translation.into();
-                let rotations: [f32; 4] = transform.rotation.into();
+                let rotation: [f32; 4] = transform.rotation.into();
 
-                if let Ok(msg) = postcard::to_allocvec(&NetworkedEntities {
-                    tick: tick.0,
-                    entities: vec![player_entity],
-                    translations: vec![translation],
-                    rotations: vec![rotations],
-                    player_ids: vec![*client_id],
+                if let Ok(msg) = postcard::to_allocvec(&ServerMessages::PlayerCreate {
+                    id: *client_id,
+                    entity: player_entity,
+                    translation,
+                    rotation,
                 }) {
-                    server.send_message(*client_id, ServerChannel::NetworkedEntities, msg);
+                    server.send_message(*client_id, ServerChannel::ServerMessages, msg);
                 }
             }
             ServerEvent::ClientDisconnected { client_id, reason } => {
@@ -199,7 +199,7 @@ fn spawn_bot(
     mut commands: Commands,
 ) {
     if keyboard_input.just_pressed(KeyCode::Space) {
-        let client_id: ClientId = bot_id.0 as ClientId;
+        let client_id: ClientId = (1_000_000_000_000u64 + bot_id.0 as u64) as ClientId;
         bot_id.0 += 1;
 
         let transform = Transform::from_xyz(
@@ -213,24 +213,26 @@ fn spawn_bot(
                 Mesh3d(meshes.add(Mesh::from(Capsule3d::default()))),
                 MeshMaterial3d(materials.add(Color::srgb(0.8, 0.7, 0.6))),
                 transform,
+                Player {
+                    id: client_id,
+                    speed: 5.0,
+                },
+                Bot {
+                    auto_cast: Timer::from_seconds(3.0, TimerMode::Repeating),
+                },
             ))
-            .insert(Player {
-                id: client_id,
-                speed: 5.0,
-            })
-            .insert(Bot {
-                auto_cast: Timer::from_seconds(3.0, TimerMode::Repeating),
-            })
             .id();
 
         lobby.players.insert(client_id, player_entity);
 
         let translation: [f32; 3] = transform.translation.into();
+        let rotation: [f32; 4] = transform.rotation.into();
 
         if let Ok(msg) = postcard::to_allocvec(&ServerMessages::PlayerCreate {
             entity: player_entity,
             id: client_id,
-            translation: translation,
+            translation,
+            rotation,
         }) {
             server.broadcast_message(ServerChannel::ServerMessages, msg);
         }
@@ -260,5 +262,25 @@ fn setup_simple_camera(mut commands: Commands) {
     commands.spawn((
         Camera3d::default(),
         Transform::from_xyz(-20.5, 30.0, 20.5).looking_at(Vec3::ZERO, Vec3::Y),
+    ));
+}
+
+fn setup_level(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    commands.spawn((
+        Mesh3d(meshes.add(Circle::new(4.0))),
+        MeshMaterial3d(materials.add(Color::WHITE)),
+        Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+    ));
+
+    commands.spawn((
+        PointLight {
+            shadows_enabled: true,
+            ..default()
+        },
+        Transform::from_xyz(4.0, 8.0, 4.0),
     ));
 }

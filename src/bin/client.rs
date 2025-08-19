@@ -10,15 +10,15 @@ use bevy::{
 };
 use bevy_egui::{EguiContexts, EguiPlugin};
 use bevy_renet::{
-    client_connected, client_just_connected, client_just_disconnected,
+    client_connected,
     netcode::{
         ClientAuthentication, NetcodeClientPlugin, NetcodeClientTransport, NetcodeTransportError,
     },
     RenetClientPlugin,
 };
 use metin2::{
-    setup_level, ClientChannel, NetworkedEntities, PlayerCommand, PlayerInput,
-    RenetClientVisualizer, RenetVisualizerStyle, ServerChannel, ServerMessages, PROTOCOL_ID,
+    ClientChannel, NetworkedEntities, PlayerCommand, PlayerInput, RenetClientVisualizer,
+    RenetVisualizerStyle, ServerChannel, ServerMessages, PROTOCOL_ID,
 };
 use renet::{ClientId, ConnectionConfig, RenetClient};
 
@@ -61,9 +61,6 @@ struct ClientLobby {
 
 #[derive(Default, Resource)]
 struct NetworkMapping(HashMap<Entity, Entity>);
-
-#[derive(Default, Resource)]
-struct LocalClientEntity(Option<Entity>);
 
 #[derive(Resource)]
 struct SnapshotBuffer {
@@ -118,7 +115,6 @@ fn main() {
     app.insert_resource(transport);
     app.insert_resource(CurrentClientId(0));
     app.insert_resource(SnapshotBuffer::default());
-    app.insert_resource(LocalClientEntity::default());
     app.insert_resource(OrbitSettings {
         distance: 10.0,
         min_distance: 3.0,
@@ -133,48 +129,40 @@ fn main() {
     });
 
     app.add_event::<PlayerCommand>();
+    app.insert_resource(RenetClientVisualizer::<200>::new(
+        RenetVisualizerStyle::default(),
+    ));
     app.insert_resource(ClientLobby::default());
     app.insert_resource(PlayerInput::default());
     app.insert_resource(NetworkMapping::default());
 
     app.add_systems(
         Update,
+        predict_local_player
+            .in_set(Connected)
+            .before(interpolate_snapshots),
+    );
+    app.add_systems(
+        Update,
         (
+            interpolate_snapshots,
             zoom_camera_wheel,
             rotate_orbit_with_mouse,
             player_input,
             update_orbit_camera,
             panic_on_error_system,
             graceful_disconnect_on_exit,
-        ),
-    );
-    app.add_systems(Update, predict_local_player.before(interpolate_snapshots));
-
-    app.add_systems(
-        Update,
-        (
             client_send_input,
             client_send_player_commands,
             client_sync_players,
         )
             .in_set(Connected),
     );
-    app.add_systems(Update, on_connect.run_if(client_just_connected));
-    app.add_systems(Update, on_disconnect.run_if(client_just_disconnected));
-
-    app.insert_resource(RenetClientVisualizer::<200>::new(
-        RenetVisualizerStyle::default(),
-    ));
-
     app.add_systems(Update, update_visulizer_system);
-    app.add_systems(Startup, (setup_level, setup));
+    app.add_systems(Startup, (setup, setup_level));
 
     app.run();
 }
-
-fn on_disconnect() {}
-
-fn on_connect() {}
 
 fn graceful_disconnect_on_exit(
     mut exit_events: EventReader<AppExit>,
@@ -214,7 +202,7 @@ fn update_visulizer_system(
 fn player_input(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut player_input: ResMut<PlayerInput>,
-    mut q_player: Query<&Transform, With<Player>>,
+    mut q_player: Query<&Transform, With<ControlledPlayer>>,
     mut player_commands: EventWriter<PlayerCommand>,
 ) {
     player_input.left =
@@ -261,52 +249,56 @@ fn client_sync_players(
     mut lobby: ResMut<ClientLobby>,
     mut network_mapping: ResMut<NetworkMapping>,
     mut buffer: ResMut<SnapshotBuffer>,
-    mut local: ResMut<LocalClientEntity>,
     mut q_tf: Query<&mut Transform>,
 ) {
     let client_id = client_id.0;
+
     while let Some(message) = client.receive_message(ServerChannel::ServerMessages) {
         let server_message = postcard::from_bytes(&message).unwrap();
         match server_message {
             ServerMessages::PlayerCreate {
                 id,
                 translation,
-                entity,
+                entity: server_entity,
+                rotation,
             } => {
                 println!("Player {} connected.", id);
+
+                let transform = Transform {
+                    translation: translation.into(),
+                    rotation: Quat::from_xyzw(rotation[0], rotation[1], rotation[2], rotation[3]),
+                    ..default()
+                };
 
                 let mut player = commands.spawn((
                     Player,
                     Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0))),
                     MeshMaterial3d(materials.add(Color::srgb_u8(255, 180, 80))),
-                    Transform::from_xyz(translation[0], translation[1], translation[2]),
+                    transform,
                 ));
-
-                let player_id = player.id();
 
                 if client_id == id {
                     player.insert(ControlledPlayer);
-                    local.0 = Some(player_id);
                 }
 
-                let player_info = PlayerInfo {
-                    server_entity: entity,
-                    client_entity: player_id,
-                };
+                let client_entity = player.id();
 
-                lobby.players.insert(id, player_info);
+                network_mapping.0.insert(server_entity, client_entity);
 
-                network_mapping.0.insert(entity, player_id);
+                lobby.players.insert(
+                    id,
+                    PlayerInfo {
+                        server_entity,
+                        client_entity,
+                    },
+                );
             }
             ServerMessages::PlayerRemove { id } => {
                 println!("Player {} disconnected.", id);
-                if let Some(PlayerInfo {
-                    server_entity,
-                    client_entity,
-                }) = lobby.players.remove(&id)
-                {
-                    commands.entity(client_entity).despawn();
-                    network_mapping.0.remove(&server_entity);
+                if let Some(info) = lobby.players.remove(&id) {
+                    commands.entity(info.client_entity).despawn();
+                    network_mapping.0.remove(&info.server_entity);
+                    buffer.by_entity.remove(&info.client_entity);
                 }
             }
         }
@@ -322,7 +314,6 @@ fn client_sync_players(
         buffer.latest_tick = buffer.latest_tick.max(networked_entities.tick);
 
         for i in 0..networked_entities.entities.len() {
-            let player_id = networked_entities.player_ids[i];
             let server_entity = networked_entities.entities[i];
             let translation = networked_entities.translations[i].into();
             let rotation = Quat::from_xyzw(
@@ -333,7 +324,13 @@ fn client_sync_players(
             );
 
             if let Some(&client_entity) = network_mapping.0.get(&server_entity) {
-                if local.0 == Some(client_entity) {
+                let is_local = lobby
+                    .players
+                    .get(&client_id)
+                    .map(|p| p.client_entity == client_entity)
+                    .unwrap_or(false);
+
+                if is_local {
                     if let Ok(mut tf) = q_tf.get_mut(client_entity) {
                         let k = 0.15;
                         tf.translation = tf.translation.lerp(translation, k);
@@ -353,19 +350,6 @@ fn client_sync_players(
                         dq.pop_front();
                     }
                 }
-            } else {
-                let mut player = commands.spawn((
-                    Player,
-                    Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0))),
-                    MeshMaterial3d(materials.add(Color::srgb_u8(255, 180, 80))),
-                    Transform::from_xyz(translation[0], translation[1], translation[2]),
-                ));
-
-                if player_id == client_id {
-                    player.insert(ControlledPlayer);
-                }
-
-                network_mapping.0.insert(server_entity, player.id());
             }
         }
     }
@@ -375,8 +359,8 @@ fn update_orbit_camera(
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     mut orbit: ResMut<OrbitSettings>,
-    q_player: Query<&Transform, With<Player>>,
-    mut q_cam: Query<&mut Transform, (With<Camera3d>, Without<Player>)>,
+    q_player: Query<&Transform, With<ControlledPlayer>>,
+    mut q_cam: Query<&mut Transform, (With<Camera3d>, Without<ControlledPlayer>)>,
 ) {
     let Ok(player_tf) = q_player.single() else {
         return;
@@ -464,7 +448,8 @@ fn interpolate_snapshots(
     mut q_tf: Query<&mut Transform>,
     mut buffer: ResMut<SnapshotBuffer>,
     time: Res<Time>,
-    local: Res<LocalClientEntity>,
+    lobby: Res<ClientLobby>,
+    client_id: Res<CurrentClientId>,
 ) {
     if !buffer.initialized {
         return;
@@ -473,16 +458,17 @@ fn interpolate_snapshots(
     let target = buffer.latest_tick as f32 - INTERP_DELAY_TICKS as f32;
     let step = buffer.server_hz * time.delta_secs();
 
-    if buffer.render_tick < target {
-        buffer.render_tick = (buffer.render_tick + step).min(target);
+    buffer.render_tick = if buffer.render_tick < target {
+        (buffer.render_tick + step).min(target)
     } else {
-        buffer.render_tick = target;
-    }
-
+        target
+    };
     let rt = buffer.render_tick;
 
+    let local_entity = lobby.players.get(&client_id.0).map(|p| p.client_entity);
+
     for (entity, dq) in buffer.by_entity.iter() {
-        if local.0 == Some(*entity) {
+        if Some(*entity) == local_entity {
             continue;
         }
 
@@ -540,4 +526,24 @@ fn predict_local_player(
             tf.rotation = Quat::from_rotation_y(yaw);
         }
     }
+}
+
+fn setup_level(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    commands.spawn((
+        Mesh3d(meshes.add(Circle::new(4.0))),
+        MeshMaterial3d(materials.add(Color::WHITE)),
+        Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+    ));
+
+    commands.spawn((
+        PointLight {
+            shadows_enabled: true,
+            ..default()
+        },
+        Transform::from_xyz(4.0, 8.0, 4.0),
+    ));
 }
