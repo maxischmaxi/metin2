@@ -1,4 +1,7 @@
-use bevy::prelude::*;
+use bevy::{input::mouse::MouseMotion, pbr::CascadeShadowConfigBuilder, prelude::*};
+use bevy_rapier3d::prelude::{
+    Collider, ComputedColliderShape, Friction, Restitution, RigidBody, TriMeshFlags,
+};
 use egui::{
     epaint::{PathShape, RectShape},
     pos2, remap, vec2, Color32, CornerRadius, Rect, Rgba, RichText, Sense, Shape, Stroke,
@@ -7,6 +10,9 @@ use egui::{
 use renet::{ChannelConfig, ClientId, NetworkInfo, RenetServer, SendType};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, time::Duration};
+
+#[derive(Component)]
+pub struct Player;
 
 pub const PROTOCOL_ID: u64 = 7;
 
@@ -17,10 +23,7 @@ pub enum PlayerCommand {
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, Component, Resource)]
 pub struct PlayerInput {
-    pub up: bool,
-    pub down: bool,
-    pub left: bool,
-    pub right: bool,
+    pub dir: [f32; 2],
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -454,7 +457,7 @@ impl<const N: usize> RenetServerVisualizer<N> {
                     ui.checkbox(&mut self.show_all_clients, "Show all clients");
                     ui.add_enabled_ui(!self.show_all_clients, |ui| {
                         let selected_text = match self.selected_client {
-                            Some(client_id) => format!("{}", client_id),
+                            Some(client_id) => format!("{client_id}"),
                             None => "------".to_string(),
                         };
                         egui::ComboBox::from_label("Select client")
@@ -464,7 +467,7 @@ impl<const N: usize> RenetServerVisualizer<N> {
                                     ui.selectable_value(
                                         &mut self.selected_client,
                                         Some(*client_id),
-                                        format!("{}", client_id),
+                                        format!("{client_id}"),
                                     );
                                 }
                             })
@@ -474,7 +477,7 @@ impl<const N: usize> RenetServerVisualizer<N> {
                     if self.show_all_clients {
                         for (client_id, client) in self.clients.iter() {
                             ui.vertical(|ui| {
-                                ui.heading(format!("Client {}", client_id));
+                                ui.heading(format!("Client {client_id}"));
                                 ui.horizontal(|ui| {
                                     client.draw_all(ui);
                                 });
@@ -528,7 +531,7 @@ fn show_graph(
         let spacing_x = ui.spacing().item_spacing.x;
 
         let last_text: WidgetText = match text_format {
-            TextFormat::Normal => format!("{:.2}", last_value).into(),
+            TextFormat::Normal => format!("{last_value}").into(),
             TextFormat::Percentage => format!("{:.1}%", last_value * 100.).into(),
         };
         let galley = last_text.into_galley(
@@ -581,7 +584,7 @@ fn show_graph(
 
         {
             let text: WidgetText = match text_format {
-                TextFormat::Normal => format!("{:.0}", max).into(),
+                TextFormat::Normal => format!("{min}").into(),
                 TextFormat::Percentage => format!("{:.0}%", max * 100.).into(),
             };
             let galley = text.into_galley(
@@ -598,7 +601,7 @@ fn show_graph(
         }
         {
             let text: WidgetText = match text_format {
-                TextFormat::Normal => format!("{:.0}", min).into(),
+                TextFormat::Normal => format!("{min}").into(),
                 TextFormat::Percentage => format!("{:.0}%", min * 100.).into(),
             };
             let galley = text.into_galley(
@@ -614,4 +617,243 @@ fn show_graph(
                 .galley(text_pos, galley, style.text_color);
         }
     });
+}
+
+pub fn setup_level(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let cascade_shadow_config = CascadeShadowConfigBuilder {
+        first_cascade_far_bound: 0.3,
+        maximum_distance: 0.3,
+        ..default()
+    }
+    .build();
+
+    // Sun
+    commands.spawn((
+        DirectionalLight {
+            color: Color::srgb(0.98, 0.95, 0.82),
+            shadows_enabled: true,
+            ..default()
+        },
+        Transform::from_xyz(0.0, 0.0, 0.0).looking_at(Vec3::new(-0.15, -0.05, 0.25), Vec3::Y),
+        cascade_shadow_config,
+    ));
+
+    // Terrain
+    commands.spawn((
+        SceneRoot(
+            asset_server.load(GltfAssetLabel::Scene(0).from_asset("models/terrain/Mountains.gltf")),
+        ),
+        Transform::from_xyz(0.0, -0.5, 0.0).with_scale(Vec3::splat(100.0)),
+    ));
+}
+
+pub fn add_colliders_to_gltf_scene(
+    mut commands: Commands,
+    meshes: Res<Assets<Mesh>>,
+    asset_server: Res<AssetServer>,
+    q: Query<(Entity, &Mesh3d), (Added<Mesh3d>, Without<Collider>)>,
+) {
+    for (e, mesh3d) in &q {
+        // nur Instanzen aus Mountains.gltf anfassen
+        let Some(asset_path) = asset_server.get_path(mesh3d.0.id()) else {
+            continue;
+        };
+        if !asset_path.to_string().contains("Mountains.gltf") {
+            continue;
+        }
+
+        if let Some(mesh) = meshes.get(&mesh3d.0) {
+            // bevy_rapier3d 0.26: TriMesh ist ein Konstruktor, Flags nötig
+            if let Some(collider) = Collider::from_bevy_mesh(
+                mesh,
+                &ComputedColliderShape::TriMesh(TriMeshFlags::default()),
+            ) {
+                commands
+                    .entity(e)
+                    .insert(RigidBody::Fixed)
+                    .insert(collider)
+                    .insert(Friction::coefficient(0.4))
+                    .insert(Restitution::coefficient(0.0));
+            }
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct FreeFlyCamera;
+
+#[derive(Component)]
+pub struct FreeFlyState {
+    pub yaw: f32,
+    pub pitch: f32,
+}
+
+#[derive(Resource)]
+pub struct FreeFlyConfig {
+    pub base_speed: f32,
+    pub boost_multiplier: f32,
+    pub mouse_sensitivity: f32,
+}
+
+impl Default for FreeFlyConfig {
+    fn default() -> Self {
+        Self {
+            base_speed: 12.0,
+            boost_multiplier: 6.0,
+            mouse_sensitivity: 0.0025,
+        }
+    }
+}
+
+pub struct FreeFlyCameraPlugin;
+
+impl Plugin for FreeFlyCameraPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<FreeFlyConfig>()
+            .add_systems(Startup, free_fly_setup)
+            .add_systems(Update, (free_fly_look, free_fly_move));
+    }
+}
+
+fn free_fly_setup(mut commands: Commands) {
+    commands.spawn((
+        Camera3d::default(),
+        FreeFlyCamera,
+        FreeFlyState {
+            yaw: 0.0,
+            pitch: -0.35,
+        },
+        Transform::from_xyz(0.0, 40.0, 80.0).looking_at(Vec3::ZERO, Vec3::Y),
+    ));
+}
+
+fn free_fly_look(
+    mut motion_evr: EventReader<MouseMotion>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    cfg: Res<FreeFlyConfig>,
+    mut q: Query<(&mut Transform, &mut FreeFlyState), With<FreeFlyCamera>>,
+) {
+    if !mouse_buttons.pressed(MouseButton::Right) {
+        motion_evr.clear();
+        return;
+    }
+
+    let mut delta = bevy::prelude::Vec2::ZERO;
+    for ev in motion_evr.read() {
+        delta += ev.delta;
+    }
+    if delta == bevy::prelude::Vec2::ZERO {
+        return;
+    }
+
+    if let Some((mut tf, mut st)) = q.iter_mut().next() {
+        st.yaw -= delta.x * cfg.mouse_sensitivity;
+        st.pitch -= delta.y * cfg.mouse_sensitivity;
+        st.pitch = st.pitch.clamp(-1.553343, 1.553343); // ~±89°
+
+        tf.rotation = Quat::from_euler(EulerRot::YXZ, st.yaw, st.pitch, 0.0);
+    }
+}
+
+fn free_fly_move(
+    time: Res<Time>,
+    keys: Res<ButtonInput<KeyCode>>,
+    cfg: Res<FreeFlyConfig>,
+    mut q: Query<&mut Transform, With<FreeFlyCamera>>,
+) {
+    let mut tf = q.iter_mut().next().expect("FreeFlyCamera not found");
+
+    let mut wish = Vec3::ZERO;
+
+    // vor/zurück (relativ zur Kamera)
+    let forward = tf.rotation * -Vec3::Z;
+    if keys.pressed(KeyCode::KeyW) {
+        wish += forward;
+    }
+    if keys.pressed(KeyCode::KeyS) {
+        wish -= forward;
+    }
+
+    // links/rechts (relativ zur Kamera)
+    let right = tf.rotation * Vec3::X;
+    if keys.pressed(KeyCode::KeyD) {
+        wish += right;
+    }
+    if keys.pressed(KeyCode::KeyA) {
+        wish -= right;
+    }
+
+    // hoch/runter (welt-achsen)
+    if keys.pressed(KeyCode::Space) {
+        wish += Vec3::Y;
+    }
+    if keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight) {
+        wish -= Vec3::Y;
+    }
+
+    let mut speed = cfg.base_speed;
+    if keys.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]) {
+        speed *= cfg.boost_multiplier;
+    }
+
+    let dir = wish.normalize_or_zero();
+    tf.translation += dir * speed * time.delta_secs();
+}
+
+#[derive(Component, Clone, Copy)]
+pub struct PlayerColliderDims {
+    pub half_height: f32, // Kapsel-Halblänge entlang Y
+    pub radius: f32,      // Kapsel-Radius
+}
+
+pub struct PlayerHitboxDebugPlugin;
+
+#[derive(Resource)]
+struct PlayerHitboxDebugConfig {
+    enabled: bool,
+}
+
+impl Default for PlayerHitboxDebugConfig {
+    fn default() -> Self {
+        Self { enabled: true }
+    }
+}
+
+impl Plugin for PlayerHitboxDebugPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<PlayerHitboxDebugConfig>()
+            .add_systems(Update, (toggle_player_hitbox_debug, draw_player_hitboxes));
+    }
+}
+
+fn toggle_player_hitbox_debug(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut cfg: ResMut<PlayerHitboxDebugConfig>,
+) {
+    if keys.just_pressed(KeyCode::F2) {
+        cfg.enabled = !cfg.enabled;
+    }
+}
+
+fn draw_player_hitboxes(
+    mut gizmos: Gizmos,
+    cfg: Res<PlayerHitboxDebugConfig>,
+    q: Query<(&GlobalTransform, &PlayerColliderDims), With<Player>>,
+) {
+    if !cfg.enabled {
+        return;
+    }
+
+    for (gt, dims) in &q {
+        let mut t = Transform::from_translation(gt.translation());
+        t.rotation = gt.compute_transform().rotation;
+
+        let size = Vec3::new(
+            dims.radius * 2.0,
+            dims.half_height * 2.0 + dims.radius * 2.0,
+            dims.radius * 2.0,
+        );
+        t.scale = size;
+        gizmos.cuboid(t, Color::srgb(0.1, 0.9, 0.3));
+    }
 }

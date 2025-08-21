@@ -6,9 +6,12 @@ use std::{
 
 use bevy::{
     input::mouse::{MouseMotion, MouseScrollUnit, MouseWheel},
+    pbr::NotShadowCaster,
     prelude::*,
+    window::WindowCloseRequested,
 };
 use bevy_egui::{EguiContexts, EguiPlugin};
+use bevy_rapier3d::prelude::*;
 use bevy_renet::{
     client_connected,
     netcode::{
@@ -17,13 +20,19 @@ use bevy_renet::{
     RenetClientPlugin,
 };
 use metin2::{
-    ClientChannel, NetworkedEntities, PlayerCommand, PlayerInput, RenetClientVisualizer,
+    add_colliders_to_gltf_scene, setup_level, ClientChannel, NetworkedEntities, Player,
+    PlayerColliderDims, PlayerCommand, PlayerHitboxDebugPlugin, PlayerInput, RenetClientVisualizer,
     RenetVisualizerStyle, ServerChannel, ServerMessages, PROTOCOL_ID,
 };
 use renet::{ClientId, ConnectionConfig, RenetClient};
 
-#[derive(Component)]
-struct Player;
+#[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States)]
+enum GameState {
+    #[default]
+    Splash,
+    Menu,
+    Game,
+}
 
 #[derive(Component)]
 struct ControlledPlayer;
@@ -91,12 +100,6 @@ const PLAYER_SPEED_PER_SEC: f32 = PLAYER_STEP_PER_TICK * SERVER_HZ;
 fn main() {
     let mut app = App::new();
 
-    app.add_plugins(DefaultPlugins);
-    app.add_plugins(RenetClientPlugin);
-    app.add_plugins(EguiPlugin::default());
-    app.add_plugins(NetcodeClientPlugin);
-    app.configure_sets(Update, Connected.run_if(client_connected));
-
     let client = RenetClient::new(ConnectionConfig::default());
     let server_addr = "127.0.0.1:5000".parse().unwrap();
     let socket = UdpSocket::bind("127.0.0.1:0").unwrap();
@@ -110,6 +113,17 @@ fn main() {
         user_data: None,
     };
     let transport = NetcodeClientTransport::new(current_time, authentication, socket).unwrap();
+
+    app.add_plugins(DefaultPlugins);
+    app.add_plugins(RenetClientPlugin);
+    app.add_plugins(NetcodeClientPlugin);
+    app.add_plugins(RapierPhysicsPlugin::<NoUserData>::default());
+    // app.add_plugins(RapierDebugRenderPlugin::default());
+    app.add_plugins(PlayerHitboxDebugPlugin);
+
+    app.configure_sets(Update, Connected.run_if(client_connected));
+
+    app.init_state::<GameState>();
 
     app.insert_resource(client);
     app.insert_resource(transport);
@@ -151,34 +165,78 @@ fn main() {
             player_input,
             update_orbit_camera,
             panic_on_error_system,
-            graceful_disconnect_on_exit,
             client_send_input,
             client_send_player_commands,
             client_sync_players,
         )
             .in_set(Connected),
     );
-    app.add_systems(Update, update_visulizer_system);
+    app.add_systems(
+        Update,
+        (
+            update_visulizer_system,
+            add_colliders_to_gltf_scene,
+            cmd_q_to_app_exit,
+        ),
+    );
+    app.add_systems(Update, disconnect_on_close.after(cmd_q_to_app_exit));
     app.add_systems(Startup, (setup, setup_level));
 
     app.run();
 }
 
-fn graceful_disconnect_on_exit(
-    mut exit_events: EventReader<AppExit>,
-    mut client: ResMut<RenetClient>,
-    mut transport: ResMut<NetcodeClientTransport>,
-) {
-    if exit_events.read().next().is_some() {
-        transport.disconnect();
-        client.disconnect();
+mod splash {
+    use bevy::prelude::*;
+
+    pub struct SplashPlugin;
+
+    impl Plugin for SplashPlugin {
+        fn build(&self, app: &mut App) {}
     }
 }
 
-fn setup(mut commands: Commands) {
+mod menu {
+    use bevy::prelude::*;
+
+    pub struct MenuPlugin;
+
+    impl Plugin for MenuPlugin {
+        fn build(&self, app: &mut App) {}
+    }
+}
+
+mod game {
+    use bevy::prelude::*;
+
+    pub struct GamePlugin;
+
+    impl Plugin for GamePlugin {
+        fn build(&self, app: &mut App) {}
+    }
+}
+
+fn setup(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    // Camera
     commands.spawn((
         Camera3d::default(),
         Transform::from_xyz(0.0, 10.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
+    ));
+
+    // Sky
+    commands.spawn((
+        Mesh3d(meshes.add(Cuboid::new(2.0, 2.0, 2.0))),
+        MeshMaterial3d(materials.add(StandardMaterial {
+            base_color: Srgba::hex("888888").unwrap().into(),
+            unlit: true,
+            cull_mode: None,
+            ..default()
+        })),
+        Transform::from_scale(Vec3::splat(10_000.0)),
+        NotShadowCaster,
     ));
 }
 
@@ -202,26 +260,45 @@ fn update_visulizer_system(
 fn player_input(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut player_input: ResMut<PlayerInput>,
-    mut q_player: Query<&Transform, With<ControlledPlayer>>,
+    q_cam: Query<&Transform, With<Camera3d>>,
+    q_player: Query<&Transform, With<ControlledPlayer>>,
     mut player_commands: EventWriter<PlayerCommand>,
 ) {
-    player_input.left =
-        keyboard_input.pressed(KeyCode::KeyA) || keyboard_input.pressed(KeyCode::ArrowLeft);
-    player_input.right =
-        keyboard_input.pressed(KeyCode::KeyD) || keyboard_input.pressed(KeyCode::ArrowRight);
-    player_input.up =
-        keyboard_input.pressed(KeyCode::KeyW) || keyboard_input.pressed(KeyCode::ArrowUp);
-    player_input.down =
-        keyboard_input.pressed(KeyCode::KeyS) || keyboard_input.pressed(KeyCode::ArrowDown);
-
-    let Ok(player_tf) = q_player.single_mut() else {
+    let Ok(cam_tf) = q_cam.single() else {
         return;
     };
+    let f = {
+        let v = cam_tf.forward();
+        Vec3::new(v.x, 0.0, v.z).normalize_or_zero()
+    };
+    let r = {
+        let v = cam_tf.right();
+        Vec3::new(v.x, 0.0, v.z).normalize_or_zero()
+    };
 
-    if keyboard_input.just_pressed(KeyCode::Space) {
-        player_commands.write(PlayerCommand::BasicAttack {
-            cast_at: player_tf.translation,
-        });
+    let mut wish = Vec3::ZERO;
+    if keyboard_input.pressed(KeyCode::KeyW) || keyboard_input.pressed(KeyCode::ArrowUp) {
+        wish += f;
+    }
+    if keyboard_input.pressed(KeyCode::KeyS) || keyboard_input.pressed(KeyCode::ArrowDown) {
+        wish -= f;
+    }
+    if keyboard_input.pressed(KeyCode::KeyA) || keyboard_input.pressed(KeyCode::ArrowLeft) {
+        wish -= r;
+    }
+    if keyboard_input.pressed(KeyCode::KeyD) || keyboard_input.pressed(KeyCode::ArrowRight) {
+        wish += r;
+    }
+
+    let dir3 = wish.normalize_or_zero();
+    player_input.dir = [dir3.x, dir3.z];
+
+    if let Ok(player_tf) = q_player.single() {
+        if keyboard_input.just_pressed(KeyCode::Space) {
+            player_commands.write(PlayerCommand::BasicAttack {
+                cast_at: player_tf.translation,
+            });
+        }
     }
 }
 
@@ -272,9 +349,13 @@ fn client_sync_players(
 
                 let mut player = commands.spawn((
                     Player,
-                    Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0))),
+                    Mesh3d(meshes.add(Capsule3d::new(0.9, 0.4))),
                     MeshMaterial3d(materials.add(Color::srgb_u8(255, 180, 80))),
                     transform,
+                    PlayerColliderDims {
+                        half_height: 0.4,
+                        radius: 0.9,
+                    },
                 ));
 
                 if client_id == id {
@@ -513,9 +594,7 @@ fn predict_local_player(
     mut q: Query<&mut Transform, With<ControlledPlayer>>,
 ) {
     let dt = time.delta_secs();
-    let x = (input.right as i8 - input.left as i8) as f32;
-    let y = (input.down as i8 - input.up as i8) as f32;
-    let dir = Vec2::new(x, y).normalize_or_zero();
+    let dir = Vec2::new(input.dir[0], input.dir[1]).normalize_or_zero();
 
     for mut tf in &mut q {
         tf.translation.x += dir.x * PLAYER_SPEED_PER_SEC * dt;
@@ -528,22 +607,27 @@ fn predict_local_player(
     }
 }
 
-fn setup_level(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+fn disconnect_on_close(
+    mut ev_exit: EventReader<AppExit>,
+    mut ev_win_close: EventReader<WindowCloseRequested>,
+    mut client: ResMut<RenetClient>,
+    mut transport: ResMut<NetcodeClientTransport>,
 ) {
-    commands.spawn((
-        Mesh3d(meshes.add(Circle::new(4.0))),
-        MeshMaterial3d(materials.add(Color::WHITE)),
-        Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
-    ));
+    let app_exiting = ev_exit.read().next().is_some();
+    let win_closing = ev_win_close.read().next().is_some();
+    if app_exiting || win_closing {
+        // zuerst Transport, dann Client
+        transport.disconnect();
+        client.disconnect();
+    }
+}
 
-    commands.spawn((
-        PointLight {
-            shadows_enabled: true,
-            ..default()
-        },
-        Transform::from_xyz(4.0, 8.0, 4.0),
-    ));
+fn cmd_q_to_app_exit(keys: Res<ButtonInput<KeyCode>>, mut exit_writer: EventWriter<AppExit>) {
+    #[cfg(target_os = "macos")]
+    {
+        let super_down = keys.any_pressed([KeyCode::SuperLeft, KeyCode::SuperRight]);
+        if super_down && keys.just_pressed(KeyCode::KeyQ) {
+            exit_writer.write(AppExit::Success);
+        }
+    }
 }

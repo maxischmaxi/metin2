@@ -1,0 +1,408 @@
+warning|:|src/lib.rs|:|654|:|654|:|8|:|68|:|very complex type used. Consider factoring parts into `type` definitions|:|[0m[1m[33mwarning[0m[0m[1m: very complex type used. Consider factoring parts into `type` definitions[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/lib.rs:654:8[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m654[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    q: Query<(Entity, &Mesh3d), (Added<Mesh3d>, Without<Collider>)>,[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#type_complexity[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(clippy::type_complexity)]` on by default[0m
+
+|:|none
+warning|:|src/lib.rs|:|654|:|654|:|8|:|68|:|very complex type used. Consider factoring parts into `type` definitions|:|[0m[1m[33mwarning[0m[0m[1m: very complex type used. Consider factoring parts into `type` definitions[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/lib.rs:654:8[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m654[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    q: Query<(Entity, &Mesh3d), (Added<Mesh3d>, Without<Collider>)>,[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#type_complexity[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(clippy::type_complexity)]` on by default[0m
+
+|:|none
+warning|:|src/bin/server.rs|:|227|:|227|:|46|:|57|:|unused variable: `cast_at`|:|[0m[1m[33mwarning[0m[0m[1m: unused variable: `cast_at`[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/server.rs:227:46[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m227[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m                PlayerCommand::BasicAttack { mut cast_at } => {}[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m                                              [0m[0m[1m[33m^^^^^^^^^^^[0m[0m [0m[0m[1m[33mhelp: try ignoring the field: `cast_at: _`[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(unused_variables)]` on by default[0m
+
+|:|none
+help|:|src/bin/server.rs|:|227|:|227|:|46|:|57|:|try ignoring the field|:|none|:|cast_at: _
+warning|:|src/bin/server.rs|:|227|:|227|:|46|:|57|:|variable does not need to be mutable|:|[0m[1m[33mwarning[0m[0m[1m: variable does not need to be mutable[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/server.rs:227:46[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m227[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m                PlayerCommand::BasicAttack { mut cast_at } => {}[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m                                              [0m[0m[1m[38;5;12m----[0m[0m[1m[33m^^^^^^^[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m                                              [0m[0m[1m[38;5;12m|[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m                                              [0m[0m[1m[38;5;12mhelp: remove this `mut`[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(unused_mut)]` on by default[0m
+
+|:|none
+help|:|src/bin/server.rs|:|227|:|227|:|46|:|50|:|remove this `mut`|:|none|:|
+warning|:|src/bin/server.rs|:|28|:|28|:|8|:|11|:|field `auto_cast` is never read|:|[0m[1m[33mwarning[0m[0m[1m: field `auto_cast` is never read[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/server.rs:29:5[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m28[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mstruct Bot {[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[38;5;12m---[0m[0m [0m[0m[1m[38;5;12mfield in this struct[0m
+[0m[1m[38;5;12m29[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    auto_cast: Timer,[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^^^^^^[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `Bot` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
+
+|:|none
+warning|:|src/bin/server.rs|:|29|:|29|:|5|:|14|:|field `auto_cast` is never read|:|[0m[1m[33mwarning[0m[0m[1m: field `auto_cast` is never read[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/server.rs:29:5[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m28[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mstruct Bot {[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[38;5;12m---[0m[0m [0m[0m[1m[38;5;12mfield in this struct[0m
+[0m[1m[38;5;12m29[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    auto_cast: Timer,[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^^^^^^[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `Bot` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
+
+|:|none
+warning|:|src/bin/server.rs|:|227|:|227|:|46|:|57|:|unused variable: `cast_at`|:|[0m[1m[33mwarning[0m[0m[1m: unused variable: `cast_at`[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/server.rs:227:46[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m227[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m                PlayerCommand::BasicAttack { mut cast_at } => {}[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m                                              [0m[0m[1m[33m^^^^^^^^^^^[0m[0m [0m[0m[1m[33mhelp: try ignoring the field: `cast_at: _`[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(unused_variables)]` on by default[0m
+
+|:|none
+help|:|src/bin/server.rs|:|227|:|227|:|46|:|57|:|try ignoring the field|:|none|:|cast_at: _
+warning|:|src/bin/server.rs|:|227|:|227|:|46|:|57|:|variable does not need to be mutable|:|[0m[1m[33mwarning[0m[0m[1m: variable does not need to be mutable[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/server.rs:227:46[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m227[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m                PlayerCommand::BasicAttack { mut cast_at } => {}[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m                                              [0m[0m[1m[38;5;12m----[0m[0m[1m[33m^^^^^^^[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m                                              [0m[0m[1m[38;5;12m|[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m                                              [0m[0m[1m[38;5;12mhelp: remove this `mut`[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(unused_mut)]` on by default[0m
+
+|:|none
+help|:|src/bin/server.rs|:|227|:|227|:|46|:|50|:|remove this `mut`|:|none|:|
+warning|:|src/bin/server.rs|:|28|:|28|:|8|:|11|:|field `auto_cast` is never read|:|[0m[1m[33mwarning[0m[0m[1m: field `auto_cast` is never read[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/server.rs:29:5[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m28[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mstruct Bot {[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[38;5;12m---[0m[0m [0m[0m[1m[38;5;12mfield in this struct[0m
+[0m[1m[38;5;12m29[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    auto_cast: Timer,[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^^^^^^[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `Bot` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
+
+|:|none
+warning|:|src/bin/server.rs|:|29|:|29|:|5|:|14|:|field `auto_cast` is never read|:|[0m[1m[33mwarning[0m[0m[1m: field `auto_cast` is never read[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/server.rs:29:5[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m28[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mstruct Bot {[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[38;5;12m---[0m[0m [0m[0m[1m[38;5;12mfield in this struct[0m
+[0m[1m[38;5;12m29[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    auto_cast: Timer,[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^^^^^^[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `Bot` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
+
+|:|none
+warning|:|src/bin/client.rs|:|13|:|13|:|31|:|41|:|unused import: `EguiPlugin`|:|[0m[1m[33mwarning[0m[0m[1m: unused import: `EguiPlugin`[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:13:31[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m13[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0muse bevy_egui::{EguiContexts, EguiPlugin};[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m                               [0m[0m[1m[33m^^^^^^^^^^[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(unused_imports)]` on by default[0m
+
+|:|none
+help|:|src/bin/client.rs|:|13|:|13|:|29|:|41|:|remove the unused import|:|none|:|
+help|:|src/bin/client.rs|:|13|:|13|:|16|:|17|:|remove the unused import|:|none|:|
+help|:|src/bin/client.rs|:|13|:|13|:|41|:|42|:|remove the unused import|:|none|:|
+warning|:|src/bin/client.rs|:|13|:|13|:|31|:|41|:|unused import: `EguiPlugin`|:|[0m[1m[33mwarning[0m[0m[1m: unused import: `EguiPlugin`[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:13:31[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m13[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0muse bevy_egui::{EguiContexts, EguiPlugin};[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m                               [0m[0m[1m[33m^^^^^^^^^^[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(unused_imports)]` on by default[0m
+
+|:|none
+help|:|src/bin/client.rs|:|13|:|13|:|29|:|41|:|remove the unused import|:|none|:|
+help|:|src/bin/client.rs|:|13|:|13|:|16|:|17|:|remove the unused import|:|none|:|
+help|:|src/bin/client.rs|:|13|:|13|:|41|:|42|:|remove the unused import|:|none|:|
+warning|:|src/bin/client.rs|:|194|:|194|:|25|:|28|:|unused variable: `app`|:|[0m[1m[33mwarning[0m[0m[1m: unused variable: `app`[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:194:25[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m194[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        fn build(&self, app: &mut App) {}[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m                         [0m[0m[1m[33m^^^[0m[0m [0m[0m[1m[33mhelp: if this is intentional, prefix it with an underscore: `_app`[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(unused_variables)]` on by default[0m
+
+|:|none
+help|:|src/bin/client.rs|:|194|:|194|:|25|:|28|:|if this is intentional, prefix it with an underscore|:|none|:|_app
+warning|:|src/bin/client.rs|:|194|:|194|:|25|:|28|:|unused variable: `app`|:|[0m[1m[33mwarning[0m[0m[1m: unused variable: `app`[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:194:25[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m194[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        fn build(&self, app: &mut App) {}[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m                         [0m[0m[1m[33m^^^[0m[0m [0m[0m[1m[33mhelp: if this is intentional, prefix it with an underscore: `_app`[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(unused_variables)]` on by default[0m
+
+|:|none
+help|:|src/bin/client.rs|:|194|:|194|:|25|:|28|:|if this is intentional, prefix it with an underscore|:|none|:|_app
+warning|:|src/bin/client.rs|:|204|:|204|:|25|:|28|:|unused variable: `app`|:|[0m[1m[33mwarning[0m[0m[1m: unused variable: `app`[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:204:25[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m204[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        fn build(&self, app: &mut App) {}[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m                         [0m[0m[1m[33m^^^[0m[0m [0m[0m[1m[33mhelp: if this is intentional, prefix it with an underscore: `_app`[0m
+
+|:|none
+help|:|src/bin/client.rs|:|204|:|204|:|25|:|28|:|if this is intentional, prefix it with an underscore|:|none|:|_app
+warning|:|src/bin/client.rs|:|204|:|204|:|25|:|28|:|unused variable: `app`|:|[0m[1m[33mwarning[0m[0m[1m: unused variable: `app`[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:204:25[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m204[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        fn build(&self, app: &mut App) {}[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m                         [0m[0m[1m[33m^^^[0m[0m [0m[0m[1m[33mhelp: if this is intentional, prefix it with an underscore: `_app`[0m
+
+|:|none
+help|:|src/bin/client.rs|:|204|:|204|:|25|:|28|:|if this is intentional, prefix it with an underscore|:|none|:|_app
+warning|:|src/bin/client.rs|:|214|:|214|:|25|:|28|:|unused variable: `app`|:|[0m[1m[33mwarning[0m[0m[1m: unused variable: `app`[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:214:25[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m214[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        fn build(&self, app: &mut App) {}[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m                         [0m[0m[1m[33m^^^[0m[0m [0m[0m[1m[33mhelp: if this is intentional, prefix it with an underscore: `_app`[0m
+
+|:|none
+help|:|src/bin/client.rs|:|214|:|214|:|25|:|28|:|if this is intentional, prefix it with an underscore|:|none|:|_app
+warning|:|src/bin/client.rs|:|214|:|214|:|25|:|28|:|unused variable: `app`|:|[0m[1m[33mwarning[0m[0m[1m: unused variable: `app`[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:214:25[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m214[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        fn build(&self, app: &mut App) {}[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m                         [0m[0m[1m[33m^^^[0m[0m [0m[0m[1m[33mhelp: if this is intentional, prefix it with an underscore: `_app`[0m
+
+|:|none
+help|:|src/bin/client.rs|:|214|:|214|:|25|:|28|:|if this is intentional, prefix it with an underscore|:|none|:|_app
+warning|:|src/bin/client.rs|:|30|:|30|:|6|:|15|:|variants `Menu` and `Game` are never constructed|:|[0m[1m[33mwarning[0m[0m[1m: variants `Menu` and `Game` are never constructed[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:33:5[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m30[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0menum GameState {[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m      [0m[0m[1m[38;5;12m---------[0m[0m [0m[0m[1m[38;5;12mvariants in this enum[0m
+[0m[1m[38;5;12m...[0m
+[0m[1m[38;5;12m33[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    Menu,[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^[0m
+[0m[1m[38;5;12m34[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    Game,[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `GameState` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
+
+|:|none
+warning|:|src/bin/client.rs|:|33|:|33|:|5|:|9|:|variants `Menu` and `Game` are never constructed|:|[0m[1m[33mwarning[0m[0m[1m: variants `Menu` and `Game` are never constructed[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:33:5[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m30[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0menum GameState {[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m      [0m[0m[1m[38;5;12m---------[0m[0m [0m[0m[1m[38;5;12mvariants in this enum[0m
+[0m[1m[38;5;12m...[0m
+[0m[1m[38;5;12m33[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    Menu,[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^[0m
+[0m[1m[38;5;12m34[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    Game,[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `GameState` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
+
+|:|none
+warning|:|src/bin/client.rs|:|34|:|34|:|5|:|9|:|variants `Menu` and `Game` are never constructed|:|[0m[1m[33mwarning[0m[0m[1m: variants `Menu` and `Game` are never constructed[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:33:5[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m30[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0menum GameState {[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m      [0m[0m[1m[38;5;12m---------[0m[0m [0m[0m[1m[38;5;12mvariants in this enum[0m
+[0m[1m[38;5;12m...[0m
+[0m[1m[38;5;12m33[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    Menu,[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^[0m
+[0m[1m[38;5;12m34[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    Game,[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `GameState` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
+
+|:|none
+warning|:|src/bin/client.rs|:|30|:|30|:|6|:|15|:|variants `Menu` and `Game` are never constructed|:|[0m[1m[33mwarning[0m[0m[1m: variants `Menu` and `Game` are never constructed[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:33:5[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m30[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0menum GameState {[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m      [0m[0m[1m[38;5;12m---------[0m[0m [0m[0m[1m[38;5;12mvariants in this enum[0m
+[0m[1m[38;5;12m...[0m
+[0m[1m[38;5;12m33[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    Menu,[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^[0m
+[0m[1m[38;5;12m34[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    Game,[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `GameState` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
+
+|:|none
+warning|:|src/bin/client.rs|:|33|:|33|:|5|:|9|:|variants `Menu` and `Game` are never constructed|:|[0m[1m[33mwarning[0m[0m[1m: variants `Menu` and `Game` are never constructed[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:33:5[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m30[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0menum GameState {[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m      [0m[0m[1m[38;5;12m---------[0m[0m [0m[0m[1m[38;5;12mvariants in this enum[0m
+[0m[1m[38;5;12m...[0m
+[0m[1m[38;5;12m33[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    Menu,[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^[0m
+[0m[1m[38;5;12m34[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    Game,[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `GameState` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
+
+|:|none
+warning|:|src/bin/client.rs|:|34|:|34|:|5|:|9|:|variants `Menu` and `Game` are never constructed|:|[0m[1m[33mwarning[0m[0m[1m: variants `Menu` and `Game` are never constructed[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:33:5[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m30[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0menum GameState {[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m      [0m[0m[1m[38;5;12m---------[0m[0m [0m[0m[1m[38;5;12mvariants in this enum[0m
+[0m[1m[38;5;12m...[0m
+[0m[1m[38;5;12m33[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    Menu,[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^[0m
+[0m[1m[38;5;12m34[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    Game,[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `GameState` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
+
+|:|none
+warning|:|src/bin/client.rs|:|320|:|330|:|1|:|2|:|this function has too many arguments (9/7)|:|[0m[1m[33mwarning[0m[0m[1m: this function has too many arguments (9/7)[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:320:1[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m320[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m[1m[33m/[0m[0m [0m[0mfn client_sync_players([0m
+[0m[1m[38;5;12m321[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m[1m[33m|[0m[0m [0m[0m    mut commands: Commands,[0m
+[0m[1m[38;5;12m322[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m[1m[33m|[0m[0m [0m[0m    mut meshes: ResMut<Assets<Mesh>>,[0m
+[0m[1m[38;5;12m323[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m[1m[33m|[0m[0m [0m[0m    mut materials: ResMut<Assets<StandardMaterial>>,[0m
+[0m[1m[38;5;12m...[0m[0m   [0m[0m[1m[33m|[0m
+[0m[1m[38;5;12m329[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m[1m[33m|[0m[0m [0m[0m    mut q_tf: Query<&mut Transform>,[0m
+[0m[1m[38;5;12m330[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m[1m[33m|[0m[0m [0m[0m) {[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m [0m[0m[1m[33m|_^[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#too_many_arguments[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(clippy::too_many_arguments)]` on by default[0m
+
+|:|none
+warning|:|src/bin/client.rs|:|320|:|330|:|1|:|2|:|this function has too many arguments (9/7)|:|[0m[1m[33mwarning[0m[0m[1m: this function has too many arguments (9/7)[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:320:1[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m320[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m[1m[33m/[0m[0m [0m[0mfn client_sync_players([0m
+[0m[1m[38;5;12m321[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m[1m[33m|[0m[0m [0m[0m    mut commands: Commands,[0m
+[0m[1m[38;5;12m322[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m[1m[33m|[0m[0m [0m[0m    mut meshes: ResMut<Assets<Mesh>>,[0m
+[0m[1m[38;5;12m323[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m[1m[33m|[0m[0m [0m[0m    mut materials: ResMut<Assets<StandardMaterial>>,[0m
+[0m[1m[38;5;12m...[0m[0m   [0m[0m[1m[33m|[0m
+[0m[1m[38;5;12m329[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m[1m[33m|[0m[0m [0m[0m    mut q_tf: Query<&mut Transform>,[0m
+[0m[1m[38;5;12m330[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m[1m[33m|[0m[0m [0m[0m) {[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m [0m[0m[1m[33m|_^[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#too_many_arguments[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(clippy::too_many_arguments)]` on by default[0m
+
+|:|none
+warning|:|src/bin/client.rs|:|342|:|342|:|17|:|53|:|variables can be used directly in the `format!` string|:|[0m[1m[33mwarning[0m[0m[1m: variables can be used directly in the `format!` string[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:342:17[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m342[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m                println!("Player {} connected.", id);[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m                 [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#uninlined_format_args[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(clippy::uninlined_format_args)]` on by default[0m
+[0m[1m[38;5;14mhelp[0m[0m: change this to[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m342[0m[0m [0m[0m[38;5;9m- [0m[0m                println!("Player {} connected."[0m[0m[38;5;9m, id[0m[0m);[0m
+[0m[1m[38;5;12m342[0m[0m [0m[0m[38;5;10m+ [0m[0m                println!("Player {[0m[0m[38;5;10mid[0m[0m} connected.");[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+
+|:|none
+help|:|src/bin/client.rs|:|342|:|342|:|35|:|35|:|change this to|:|none|:|id
+help|:|src/bin/client.rs|:|342|:|342|:|48|:|52|:|change this to|:|none|:|
+warning|:|src/bin/client.rs|:|342|:|342|:|17|:|53|:|variables can be used directly in the `format!` string|:|[0m[1m[33mwarning[0m[0m[1m: variables can be used directly in the `format!` string[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:342:17[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m342[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m                println!("Player {} connected.", id);[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m                 [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#uninlined_format_args[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(clippy::uninlined_format_args)]` on by default[0m
+[0m[1m[38;5;14mhelp[0m[0m: change this to[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m342[0m[0m [0m[0m[38;5;9m- [0m[0m                println!("Player {} connected."[0m[0m[38;5;9m, id[0m[0m);[0m
+[0m[1m[38;5;12m342[0m[0m [0m[0m[38;5;10m+ [0m[0m                println!("Player {[0m[0m[38;5;10mid[0m[0m} connected.");[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+
+|:|none
+help|:|src/bin/client.rs|:|342|:|342|:|35|:|35|:|change this to|:|none|:|id
+help|:|src/bin/client.rs|:|342|:|342|:|48|:|52|:|change this to|:|none|:|
+warning|:|src/bin/client.rs|:|378|:|378|:|17|:|56|:|variables can be used directly in the `format!` string|:|[0m[1m[33mwarning[0m[0m[1m: variables can be used directly in the `format!` string[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:378:17[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m378[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m                println!("Player {} disconnected.", id);[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m                 [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#uninlined_format_args[0m
+[0m[1m[38;5;14mhelp[0m[0m: change this to[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m378[0m[0m [0m[0m[38;5;9m- [0m[0m                println!("Player {} disconnected."[0m[0m[38;5;9m, id[0m[0m);[0m
+[0m[1m[38;5;12m378[0m[0m [0m[0m[38;5;10m+ [0m[0m                println!("Player {[0m[0m[38;5;10mid[0m[0m} disconnected.");[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+
+|:|none
+help|:|src/bin/client.rs|:|378|:|378|:|35|:|35|:|change this to|:|none|:|id
+help|:|src/bin/client.rs|:|378|:|378|:|51|:|55|:|change this to|:|none|:|
+warning|:|src/bin/client.rs|:|378|:|378|:|17|:|56|:|variables can be used directly in the `format!` string|:|[0m[1m[33mwarning[0m[0m[1m: variables can be used directly in the `format!` string[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:378:17[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m378[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m                println!("Player {} disconnected.", id);[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m                 [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#uninlined_format_args[0m
+[0m[1m[38;5;14mhelp[0m[0m: change this to[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m378[0m[0m [0m[0m[38;5;9m- [0m[0m                println!("Player {} disconnected."[0m[0m[38;5;9m, id[0m[0m);[0m
+[0m[1m[38;5;12m378[0m[0m [0m[0m[38;5;10m+ [0m[0m                println!("Player {[0m[0m[38;5;10mid[0m[0m} disconnected.");[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+
+|:|none
+help|:|src/bin/client.rs|:|378|:|378|:|35|:|35|:|change this to|:|none|:|id
+help|:|src/bin/client.rs|:|378|:|378|:|51|:|55|:|change this to|:|none|:|
+warning|:|src/bin/client.rs|:|484|:|484|:|9|:|49|:|variables can be used directly in the `format!` string|:|[0m[1m[33mwarning[0m[0m[1m: variables can be used directly in the `format!` string[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:484:9[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m484[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        panic!("Renet transport error: {:?}", e);[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m         [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#uninlined_format_args[0m
+[0m[1m[38;5;14mhelp[0m[0m: change this to[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m484[0m[0m [0m[0m[38;5;9m- [0m[0m        panic!("Renet transport error: {:?}"[0m[0m[38;5;9m, e[0m[0m);[0m
+[0m[1m[38;5;12m484[0m[0m [0m[0m[38;5;10m+ [0m[0m        panic!("Renet transport error: {[0m[0m[38;5;10me[0m[0m:?}");[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+
+|:|none
+help|:|src/bin/client.rs|:|484|:|484|:|41|:|41|:|change this to|:|none|:|e
+help|:|src/bin/client.rs|:|484|:|484|:|45|:|48|:|change this to|:|none|:|
+warning|:|src/bin/client.rs|:|484|:|484|:|9|:|49|:|variables can be used directly in the `format!` string|:|[0m[1m[33mwarning[0m[0m[1m: variables can be used directly in the `format!` string[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/bin/client.rs:484:9[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m484[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        panic!("Renet transport error: {:?}", e);[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m         [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#uninlined_format_args[0m
+[0m[1m[38;5;14mhelp[0m[0m: change this to[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m484[0m[0m [0m[0m[38;5;9m- [0m[0m        panic!("Renet transport error: {:?}"[0m[0m[38;5;9m, e[0m[0m);[0m
+[0m[1m[38;5;12m484[0m[0m [0m[0m[38;5;10m+ [0m[0m        panic!("Renet transport error: {[0m[0m[38;5;10me[0m[0m:?}");[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+
+|:|none
+help|:|src/bin/client.rs|:|484|:|484|:|41|:|41|:|change this to|:|none|:|e
+help|:|src/bin/client.rs|:|484|:|484|:|45|:|48|:|change this to|:|none|:|
