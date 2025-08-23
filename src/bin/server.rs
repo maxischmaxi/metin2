@@ -7,10 +7,10 @@ use bevy_renet::{
     RenetServerPlugin,
 };
 use metin2::{
-    add_colliders_to_gltf_scene, serialize_server_messages, setup_level, ClientChannel,
-    FreeFlyCameraPlugin, NetworkedEntities, Player, PlayerColliderDims, PlayerCommand,
-    PlayerHitboxDebugPlugin, PlayerInput, RenetServerVisualizer, ServerChannel, ServerMessages,
-    PROTOCOL_ID,
+    add_colliders_to_gltf_scene, pump_scene_loads, serialize_server_messages, setup_level,
+    ClientChannel, FreeFlyCameraPlugin, NetworkedEntities, Player, PlayerColliderDims,
+    PlayerCommand, PlayerHitboxDebugPlugin, PlayerInput, RenetServerVisualizer, SceneLoadQueue,
+    ServerChannel, ServerMessages, EXAMPLES, PROTOCOL_ID,
 };
 use renet::ClientId;
 use std::{collections::HashMap, net::UdpSocket, time::SystemTime};
@@ -71,6 +71,8 @@ fn main() {
     app.add_plugins(FreeFlyCameraPlugin);
     // app.add_plugins(RapierDebugRenderPlugin::default());
     app.add_plugins(PlayerHitboxDebugPlugin);
+    app.add_plugins(bevy_atmosphere::plugin::AtmospherePlugin);
+    app.add_plugins(bevy_inspector_egui::quick::WorldInspectorPlugin::new());
 
     app.insert_resource(ServerLobby::default());
     app.insert_resource(Tick(0));
@@ -80,10 +82,16 @@ fn main() {
     app.insert_resource(transport);
     app.insert_resource(Time::<Fixed>::from_hz(30.0));
     app.insert_resource(SavedPositions::default());
+    app.insert_resource(SceneLoadQueue::new(EXAMPLES));
 
     app.add_systems(
         Update,
-        (server_update_system, spawn_bot, add_colliders_to_gltf_scene),
+        (
+            server_update_system,
+            spawn_bot,
+            add_colliders_to_gltf_scene,
+            pump_scene_loads,
+        ),
     );
     app.add_systems(FixedUpdate, (move_players_system, server_network_sync));
     app.add_systems(Startup, setup_level);

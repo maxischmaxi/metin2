@@ -6,7 +6,6 @@ use std::{
 
 use bevy::{
     input::mouse::{MouseMotion, MouseScrollUnit, MouseWheel},
-    pbr::NotShadowCaster,
     prelude::*,
     window::WindowCloseRequested,
 };
@@ -118,8 +117,10 @@ fn main() {
     app.add_plugins(RenetClientPlugin);
     app.add_plugins(NetcodeClientPlugin);
     app.add_plugins(RapierPhysicsPlugin::<NoUserData>::default());
+    app.add_plugins(EguiPlugin::default());
     // app.add_plugins(RapierDebugRenderPlugin::default());
     app.add_plugins(PlayerHitboxDebugPlugin);
+    app.add_plugins(bevy_atmosphere::plugin::AtmospherePlugin);
 
     app.configure_sets(Update, Connected.run_if(client_connected));
 
@@ -215,28 +216,11 @@ mod game {
     }
 }
 
-fn setup(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    // Camera
+fn setup(mut commands: Commands) {
     commands.spawn((
         Camera3d::default(),
         Transform::from_xyz(0.0, 10.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
-    ));
-
-    // Sky
-    commands.spawn((
-        Mesh3d(meshes.add(Cuboid::new(2.0, 2.0, 2.0))),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Srgba::hex("888888").unwrap().into(),
-            unlit: true,
-            cull_mode: None,
-            ..default()
-        })),
-        Transform::from_scale(Vec3::splat(10_000.0)),
-        NotShadowCaster,
+        bevy_atmosphere::plugin::AtmosphereCamera::default(),
     ));
 }
 
@@ -317,6 +301,7 @@ fn client_send_player_commands(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn client_sync_players(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -339,7 +324,7 @@ fn client_sync_players(
                 entity: server_entity,
                 rotation,
             } => {
-                println!("Player {} connected.", id);
+                println!("Player {id} connected.");
 
                 let transform = Transform {
                     translation: translation.into(),
@@ -375,7 +360,7 @@ fn client_sync_players(
                 );
             }
             ServerMessages::PlayerRemove { id } => {
-                println!("Player {} disconnected.", id);
+                println!("Player {id} disconnected.");
                 if let Some(info) = lobby.players.remove(&id) {
                     commands.entity(info.client_entity).despawn();
                     network_mapping.0.remove(&info.server_entity);
@@ -481,7 +466,7 @@ fn update_orbit_camera(
 #[allow(clippy::never_loop)]
 fn panic_on_error_system(mut renet_error: EventReader<NetcodeTransportError>) {
     for e in renet_error.read() {
-        panic!("Renet transport error: {:?}", e);
+        panic!("Renet transport error: {e}");
     }
 }
 

@@ -9,7 +9,10 @@ use egui::{
 };
 use renet::{ChannelConfig, ClientId, NetworkInfo, RenetServer, SendType};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::{HashMap, VecDeque},
+    time::Duration,
+};
 
 #[derive(Component)]
 pub struct Player;
@@ -182,11 +185,6 @@ mod tests {
     }
 }
 
-/// Egui visualizer for the renet client. Draws graphs with metrics:
-/// RTT, Packet Loss, Kbitps Sent/Received.
-///
-/// N: determines how many values are shown in the graph.
-/// 200 is a good value, if updated at 60 fps the graphs would hold 3 seconds of data.
 #[derive(Resource)]
 pub struct RenetClientVisualizer<const N: usize> {
     rtt: CircularBuffer<N, f32>,
@@ -196,11 +194,6 @@ pub struct RenetClientVisualizer<const N: usize> {
     style: RenetVisualizerStyle,
 }
 
-/// Egui visualizer for the renet server. Draws graphs for each connected client with metrics:
-/// RTT, Packet Loss, Kbitps Sent/Received.
-///
-/// N: determines how many values are shown in the graph.
-/// 200 is a good value, if updated at 60 fps the graphs would hold 3 seconds of data.
 #[derive(Resource)]
 pub struct RenetServerVisualizer<const N: usize> {
     show_all_clients: bool,
@@ -209,7 +202,6 @@ pub struct RenetServerVisualizer<const N: usize> {
     style: RenetVisualizerStyle,
 }
 
-/// Style configuration for the visualizer. Customize size, color and line width.
 #[derive(Debug, Clone)]
 pub struct RenetVisualizerStyle {
     pub width: f32,
@@ -264,19 +256,6 @@ impl<const N: usize> RenetClientVisualizer<N> {
         }
     }
 
-    /// Add the network information from the client. Should be called every time the client
-    /// updates.
-    ///
-    /// # Usage
-    /// ```
-    /// # use renet::{RenetClient, ConnectionConfig};
-    /// # use renet_visualizer::RenetClientVisualizer;
-    /// # let mut client = RenetClient::new(ConnectionConfig::default());
-    /// # let delta = std::time::Duration::ZERO;
-    /// # let mut visualizer = RenetClientVisualizer::<5>::new(Default::default());
-    /// client.update(delta);
-    /// visualizer.add_network_info(client.network_info());
-    /// ```
     pub fn add_network_info(&mut self, network_info: NetworkInfo) {
         self.rtt.push((network_info.rtt * 1000.) as f32);
         self.sent_bandwidth_kbps
@@ -286,7 +265,6 @@ impl<const N: usize> RenetClientVisualizer<N> {
         self.packet_loss.push(network_info.packet_loss as f32);
     }
 
-    /// Renders a new window with all the graphs metrics drawn.
     pub fn show_window(&self, ctx: &egui::Context) {
         egui::Window::new("Client Network Info")
             .resizable(false)
@@ -298,7 +276,6 @@ impl<const N: usize> RenetClientVisualizer<N> {
             });
     }
 
-    /// Draws only the Received Kilobits Per Second metric.
     pub fn draw_received_kbps(&self, ui: &mut egui::Ui) {
         show_graph(
             ui,
@@ -310,7 +287,6 @@ impl<const N: usize> RenetClientVisualizer<N> {
         );
     }
 
-    /// Draws only the Sent Kilobits Per Second metric.
     pub fn draw_sent_kbps(&self, ui: &mut egui::Ui) {
         show_graph(
             ui,
@@ -322,7 +298,6 @@ impl<const N: usize> RenetClientVisualizer<N> {
         );
     }
 
-    /// Draws only the Packet Loss metric.
     pub fn draw_packet_loss(&self, ui: &mut egui::Ui) {
         show_graph(
             ui,
@@ -334,7 +309,6 @@ impl<const N: usize> RenetClientVisualizer<N> {
         );
     }
 
-    /// Draws only the Round Time Trip metric.
     pub fn draw_rtt(&self, ui: &mut egui::Ui) {
         show_graph(
             ui,
@@ -346,7 +320,6 @@ impl<const N: usize> RenetClientVisualizer<N> {
         );
     }
 
-    /// Draw all metrics without a window or layout.
     pub fn draw_all(&self, ui: &mut egui::Ui) {
         self.draw_received_kbps(ui);
         self.draw_sent_kbps(ui);
@@ -439,15 +412,12 @@ impl<const N: usize> RenetServerVisualizer<N> {
         }
     }
 
-    /// Draw all metrics without a window or layout for the specified client.
     pub fn draw_client_metrics(&self, client_id: ClientId, ui: &mut egui::Ui) {
         if let Some(client) = self.clients.get(&client_id) {
             client.draw_all(ui);
         }
     }
 
-    /// Renders a new window with all the graphs metrics drawn. You can choose to show metrics for
-    /// all connected clients or for only one chosen by a dropdown.
     pub fn show_window(&mut self, ctx: &egui::Context) {
         egui::Window::new("Server Network Info")
             .resizable(false)
@@ -619,6 +589,31 @@ fn show_graph(
     });
 }
 
+#[derive(Resource)]
+pub struct SceneLoadQueue {
+    queue: VecDeque<(String, usize)>,
+    in_flight: Vec<Handle<Scene>>,
+}
+
+pub struct GameAsset {
+    pub name: &'static str,
+    pub transform: Transform,
+}
+
+impl SceneLoadQueue {
+    pub fn new(names: &[&GameAsset]) -> Self {
+        let mut q = VecDeque::new();
+        for (i, asset) in names.iter().enumerate() {
+            let name = asset.name;
+            q.push_back((format!("{name}.glb"), i));
+        }
+        Self {
+            queue: q,
+            in_flight: Vec::new(),
+        }
+    }
+}
+
 pub fn setup_level(mut commands: Commands, asset_server: Res<AssetServer>) {
     let cascade_shadow_config = CascadeShadowConfigBuilder {
         first_cascade_far_bound: 0.3,
@@ -645,8 +640,46 @@ pub fn setup_level(mut commands: Commands, asset_server: Res<AssetServer>) {
         ),
         Transform::from_xyz(0.0, -0.5, 0.0).with_scale(Vec3::splat(100.0)),
     ));
+
+    commands.spawn((
+        SceneRoot(
+            asset_server.load(GltfAssetLabel::Scene(0).from_asset("Dungeon/gltf/box_stacked.gltf")),
+        ),
+        Transform::from_xyz(-2.0, 0.0, 0.0).with_scale(Vec3::splat(1.0)),
+    ));
 }
 
+pub fn pump_scene_loads(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut q: ResMut<SceneLoadQueue>,
+) {
+    q.in_flight.retain(|handle| {
+        !matches!(
+            asset_server.load_state(handle.id()),
+            bevy::asset::LoadState::Loaded
+        )
+    });
+
+    while q.in_flight.len() < 10 {
+        let Some((path, idx)) = q.queue.pop_front() else {
+            break;
+        };
+        let handle: Handle<Scene> =
+            asset_server.load(GltfAssetLabel::Scene(0).from_asset(path.clone()));
+
+        let transform = if let Some(asset) = EXAMPLES.get(idx) {
+            asset.transform
+        } else {
+            Transform::from_xyz(0.0, 0.0, 0.0).with_scale(Vec3::splat(1.0))
+        };
+
+        commands.spawn((SceneRoot(handle.clone()), transform));
+        q.in_flight.push(handle);
+    }
+}
+
+#[allow(clippy::type_complexity)]
 pub fn add_colliders_to_gltf_scene(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
@@ -724,6 +757,7 @@ fn free_fly_setup(mut commands: Commands) {
             pitch: -0.35,
         },
         Transform::from_xyz(0.0, 40.0, 80.0).looking_at(Vec3::ZERO, Vec3::Y),
+        bevy_atmosphere::plugin::AtmosphereCamera::default(),
     ));
 }
 
@@ -857,3 +891,192 @@ fn draw_player_hitboxes(
         gizmos.cuboid(t, Color::srgb(0.1, 0.9, 0.3));
     }
 }
+
+pub const EXAMPLES: &[&GameAsset] = &[
+    &GameAsset {
+        name: "MedievalVillage/glb/Balcony_Cross_Corner",
+        transform: Transform::from_xyz(0.0, 0.0, 0.0).with_scale(Vec3::splat(1.0)),
+    },
+    &GameAsset {
+        name: "custom/house_1",
+        transform: Transform::from_xyz(10.0, 10.0, 0.0).with_scale(Vec3::splat(1.0)),
+    },
+];
+
+/*
+    "MedievalVillage/glb/Balcony_Cross_Straight",
+    "MedievalVillage/glb/Balcony_Simple_Corner",
+    "MedievalVillage/glb/Balcony_Simple_Straight",
+    "MedievalVillage/glb/Corner_ExteriorWide_Brick",
+    "MedievalVillage/glb/Corner_ExteriorWide_Wood",
+    "MedievalVillage/glb/Corner_Exterior_Brick",
+    "MedievalVillage/glb/Corner_Exterior_TopDown",
+    "MedievalVillage/glb/Corner_Exterior_TopOnly",
+    "MedievalVillage/glb/Corner_Exterior_Wood",
+    "MedievalVillage/glb/Corner_Interior_Big",
+    "MedievalVillage/glb/Corner_Interior_Small",
+    "MedievalVillage/glb/DoorFrame_Flat_Brick",
+    "MedievalVillage/glb/DoorFrame_Flat_WoodDark",
+    "MedievalVillage/glb/DoorFrame_Round_Brick",
+    "MedievalVillage/glb/DoorFrame_Round_WoodDark",
+    "MedievalVillage/glb/Door_1_Flat",
+    "MedievalVillage/glb/Door_1_Round",
+    "MedievalVillage/glb/Door_2_Flat",
+    "MedievalVillage/glb/Door_2_Round",
+    "MedievalVillage/glb/Door_4_Flat",
+    "MedievalVillage/glb/Door_4_Round",
+    "MedievalVillage/glb/Door_8_Flat",
+    "MedievalVillage/glb/Door_8_Round",
+    "MedievalVillage/glb/Floor_Brick",
+    "MedievalVillage/glb/Floor_RedBrick",
+    "MedievalVillage/glb/Floor_UnevenBrick",
+    "MedievalVillage/glb/Floor_WoodDark",
+    "MedievalVillage/glb/Floor_WoodDark_Half1",
+    "MedievalVillage/glb/Floor_WoodDark_Half2",
+    "MedievalVillage/glb/Floor_WoodDark_Half3",
+    "MedievalVillage/glb/Floor_WoodDark_OverhangCorner",
+    "MedievalVillage/glb/Floor_WoodDark_OverhangCorner2",
+    "MedievalVillage/glb/Floor_WoodLight",
+    "MedievalVillage/glb/Floor_WoodLight_OverhangCorner",
+    "MedievalVillage/glb/Floor_WoodLight_OverhangCorner2",
+    "MedievalVillage/glb/HoleCover_90Angle",
+    "MedievalVillage/glb/HoleCover_90Half",
+    "MedievalVillage/glb/HoleCover_90Stairs",
+    "MedievalVillage/glb/HoleCover_Straight",
+    "MedievalVillage/glb/HoleCover_StraightHalf",
+    "MedievalVillage/glb/Overhang_Plaster_Corner",
+    "MedievalVillage/glb/Overhang_Plaster_Corner_Front",
+    "MedievalVillage/glb/Overhang_Plaster_Long",
+    "MedievalVillage/glb/Overhang_Plaster_Short",
+    "MedievalVillage/glb/Overhang_RoofIncline_Plaster",
+    "MedievalVillage/glb/Overhang_RoofIncline_UnevenBricks",
+    "MedievalVillage/glb/Overhang_Roof_Plaster",
+    "MedievalVillage/glb/Overhang_Roof_UnevenBricks",
+    "MedievalVillage/glb/Overhang_Side_Plaster_Long_L",
+    "MedievalVillage/glb/Overhang_Side_Plaster_Long_R",
+    "MedievalVillage/glb/Overhang_Side_Plaster_Short_L",
+    "MedievalVillage/glb/Overhang_Side_Plaster_Short_R",
+    "MedievalVillage/glb/Overhang_Side_UnevenBrick_Long_L",
+    "MedievalVillage/glb/Overhang_Side_UnevenBrick_Long_R",
+    "MedievalVillage/glb/Overhang_Side_UnevenBrick_Short_L",
+    "MedievalVillage/glb/Overhang_Side_UnevenBrick_Short_R",
+    "MedievalVillage/glb/Overhang_UnevenBrick_Corner",
+    "MedievalVillage/glb/Overhang_UnevenBrick_Corner_Front",
+    "MedievalVillage/glb/Overhang_UnevenBrick_Long",
+    "MedievalVillage/glb/Overhang_UnevenBrick_Short",
+    "MedievalVillage/glb/Prop_Brick1",
+    "MedievalVillage/glb/Prop_Brick2",
+    "MedievalVillage/glb/Prop_Brick3",
+    "MedievalVillage/glb/Prop_Brick4",
+    "MedievalVillage/glb/Prop_Chimney",
+    "MedievalVillage/glb/Prop_Chimney2",
+    "MedievalVillage/glb/Prop_Crate",
+    "MedievalVillage/glb/Prop_ExteriorBorder_Corner",
+    "MedievalVillage/glb/Prop_ExteriorBorder_Straight1",
+    "MedievalVillage/glb/Prop_ExteriorBorder_Straight2",
+    "MedievalVillage/glb/Prop_MetalFence_Ornament",
+    "MedievalVillage/glb/Prop_MetalFence_Simple",
+    "MedievalVillage/glb/Prop_Support",
+    "MedievalVillage/glb/Prop_Vine1",
+    "MedievalVillage/glb/Prop_Vine2",
+    "MedievalVillage/glb/Prop_Vine4",
+    "MedievalVillage/glb/Prop_Vine5",
+    "MedievalVillage/glb/Prop_Vine6",
+    "MedievalVillage/glb/Prop_Vine9",
+    "MedievalVillage/glb/Prop_Wagon",
+    "MedievalVillage/glb/Prop_WoodenFence_Extension1",
+    "MedievalVillage/glb/Prop_WoodenFence_Extension2",
+    "MedievalVillage/glb/Prop_WoodenFence_Single",
+    "MedievalVillage/glb/Roof_2x4_RoundTile",
+    "MedievalVillage/glb/Roof_Dormer_RoundTile",
+    "MedievalVillage/glb/Roof_FrontSupports",
+    "MedievalVillage/glb/Roof_Front_Brick2",
+    "MedievalVillage/glb/Roof_Front_Brick4",
+    "MedievalVillage/glb/Roof_Front_Brick4_Half_L",
+    "MedievalVillage/glb/Roof_Front_Brick4_Half_R",
+    "MedievalVillage/glb/Roof_Front_Brick6",
+    "MedievalVillage/glb/Roof_Front_Brick6_Half_L",
+    "MedievalVillage/glb/Roof_Front_Brick6_Half_R",
+    "MedievalVillage/glb/Roof_Front_Brick8",
+    "MedievalVillage/glb/Roof_Front_Brick8_Half_L",
+    "MedievalVillage/glb/Roof_Front_Brick8_Half_R",
+    "MedievalVillage/glb/Roof_Log",
+    "MedievalVillage/glb/Roof_Modular_RoundTiles",
+    "MedievalVillage/glb/Roof_RoundTile_2x1",
+    "MedievalVillage/glb/Roof_RoundTile_2x1_Long",
+    "MedievalVillage/glb/Roof_RoundTiles_4x4",
+    "MedievalVillage/glb/Roof_RoundTiles_4x6",
+    "MedievalVillage/glb/Roof_RoundTiles_4x8",
+    "MedievalVillage/glb/Roof_RoundTiles_6x4",
+    "MedievalVillage/glb/Roof_RoundTiles_6x6",
+    "MedievalVillage/glb/Roof_RoundTiles_6x8",
+    "MedievalVillage/glb/Roof_RoundTiles_6x10",
+    "MedievalVillage/glb/Roof_RoundTiles_6x12",
+    "MedievalVillage/glb/Roof_RoundTiles_6x14",
+    "MedievalVillage/glb/Roof_RoundTiles_8x8",
+    "MedievalVillage/glb/Roof_RoundTiles_8x10",
+    "MedievalVillage/glb/Roof_RoundTiles_8x12",
+    "MedievalVillage/glb/Roof_RoundTiles_8x14",
+    "MedievalVillage/glb/Roof_Support2",
+    "MedievalVillage/glb/Roof_Tower_RoundTiles",
+    "MedievalVillage/glb/Roof_Wooden_2x1",
+    "MedievalVillage/glb/Roof_Wooden_2x1_Center",
+    "MedievalVillage/glb/Roof_Wooden_2x1_Center_Mirror",
+    "MedievalVillage/glb/Roof_Wooden_2x1_Corner",
+    "MedievalVillage/glb/Roof_Wooden_2x1_L",
+    "MedievalVillage/glb/Roof_Wooden_2x1_Middle",
+    "MedievalVillage/glb/Roof_Wooden_2x1_R",
+    "MedievalVillage/glb/Stair_Interior_Rails",
+    "MedievalVillage/glb/Stair_Interior_Simple",
+    "MedievalVillage/glb/Stair_Interior_Solid",
+    "MedievalVillage/glb/Stair_Interior_SolidExtended",
+    "MedievalVillage/glb/Stairs_Exterior_NoFirstStep",
+    "MedievalVillage/glb/Stairs_Exterior_Platform",
+    "MedievalVillage/glb/Stairs_Exterior_Platform45",
+    "MedievalVillage/glb/Stairs_Exterior_Platform45Clean",
+    "MedievalVillage/glb/Stairs_Exterior_PlatformU",
+    "MedievalVillage/glb/Stairs_Exterior_SidePlatform",
+    "MedievalVillage/glb/Stairs_Exterior_Sides",
+    "MedievalVillage/glb/Stairs_Exterior_Sides45",
+    "MedievalVillage/glb/Stairs_Exterior_SidesU",
+    "MedievalVillage/glb/Stairs_Exterior_SingleSide",
+    "MedievalVillage/glb/Stairs_Exterior_SingleSideThick",
+    "MedievalVillage/glb/Stairs_Exterior_Straight",
+    "MedievalVillage/glb/Stairs_Exterior_Straight_Center",
+    "MedievalVillage/glb/Stairs_Exterior_Straight_L",
+    "MedievalVillage/glb/Stairs_Exterior_Straight_R",
+    "MedievalVillage/glb/Wall_Arch",
+    "MedievalVillage/glb/Wall_BottomCover",
+    "MedievalVillage/glb/Wall_Plaster_Door_Flat",
+    "MedievalVillage/glb/Wall_Plaster_Door_Round",
+    "MedievalVillage/glb/Wall_Plaster_Door_RoundInset",
+    "MedievalVillage/glb/Wall_Plaster_Straight",
+    "MedievalVillage/glb/Wall_Plaster_Straight_Base",
+    "MedievalVillage/glb/Wall_Plaster_Straight_L",
+    "MedievalVillage/glb/Wall_Plaster_Straight_R",
+    "MedievalVillage/glb/Wall_Plaster_Window_Thin_Round",
+    "MedievalVillage/glb/Wall_Plaster_Window_Wide_Flat",
+    "MedievalVillage/glb/Wall_Plaster_Window_Wide_Flat2",
+    "MedievalVillage/glb/Wall_Plaster_Window_Wide_Round",
+    "MedievalVillage/glb/Wall_Plaster_WoodGrid",
+    "MedievalVillage/glb/Wall_UnevenBrick_Door_Flat",
+    "MedievalVillage/glb/Wall_UnevenBrick_Door_Round",
+    "MedievalVillage/glb/Wall_UnevenBrick_Straight",
+    "MedievalVillage/glb/Wall_UnevenBrick_Window_Thin_Round",
+    "MedievalVillage/glb/Wall_UnevenBrick_Window_Wide_Flat",
+    "MedievalVillage/glb/Wall_UnevenBrick_Window_Wide_Round",
+    "MedievalVillage/glb/WindowShutters_Thin_Flat_Closed",
+    "MedievalVillage/glb/WindowShutters_Thin_Flat_Open",
+    "MedievalVillage/glb/WindowShutters_Thin_Round_Closed",
+    "MedievalVillage/glb/WindowShutters_Thin_Round_Open",
+    "MedievalVillage/glb/WindowShutters_Wide_Flat_Closed",
+    "MedievalVillage/glb/WindowShutters_Wide_Flat_Open",
+    "MedievalVillage/glb/WindowShutters_Wide_Round_Closed",
+    "MedievalVillage/glb/WindowShutters_Wide_Round_Open",
+    "MedievalVillage/glb/Window_Roof_Thin",
+    "MedievalVillage/glb/Window_Roof_Wide",
+    "MedievalVillage/glb/Window_Thin_Flat1",
+    "MedievalVillage/glb/Window_Thin_Round1",
+    "MedievalVillage/glb/Window_Wide_Flat1",
+    "MedievalVillage/glb/Window_Wide_Round1",
+*/

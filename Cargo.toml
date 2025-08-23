@@ -13,6 +13,8 @@ path = "src/bin/client.rs"
 
 [dependencies]
 bevy = "0.16.1"
+bevy-inspector-egui = "0.33.1"
+bevy_atmosphere = "0.13.0"
 bevy_egui = "0.36.0"
 bevy_rapier3d = { version = "0.31.0", features = ["dim3"]}
 bevy_renet = "2.0.0"
